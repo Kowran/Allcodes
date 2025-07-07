@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<html lang="{{ lang }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
+
+<head>
+  <meta charset="UTF-8">
+  <title>{{ t.store_name }} – {{ t.title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Página multilíngue para buscar códigos de login da Netflix com suporte por WhatsApp.">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+
+    header {
+      background-color: #f8f8f8;
+      border-bottom: 1px solid #ddd;
+      padding: 10px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .logo-img {
+      height: 60px;
+      object-fit: contain;
+    }
+
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #333;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    nav a:hover {
+      color: #e50914;
+    }
+
+    .language-select {
+      margin-top: 10px;
+    }
+
+    main {
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .card {
+      background: #f5f5f5;
+      padding: 40px;
+      border-radius: 10px;
+      display: inline-block;
+      width: 500px;
+      margin-top: 20px;
+    }
+
+    .card h1 {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    input {
+      padding: 14px;
+      width: 90%;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 18px;
+    }
+
+    select {
+      padding: 5px;
+      font-size: 14px;
+      width: 180px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 14px 24px;
+      background: #e50914;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    label {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+
+    .result-box {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .result-box.success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .result-box.error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .result-box.loading {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
+    .help-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .help-box {
+      font-size: 15px;
+      background-color: #e1f5fe;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: #0277bd;
+      display: inline-block;
+      max-width: 90%;
+    }
+
+    .faq-container {
+      margin: 40px auto;
+      max-width: 700px;
+      text-align: left;
+      padding: 0 20px;
+    }
+
+    .faq-container h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+    }
+
+    .faq-item {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .faq-question {
+      background-color: #f9f9f9;
+      padding: 15px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .faq-answer {
+      display: none;
+      padding: 15px 20px;
+      background-color: #fff;
+      color: #444;
+      line-height: 1.5;
+    }
+
+    .faq-item.active .faq-answer {
+      display: block;
+    }
+
+    footer {
+      margin-top: 60px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+    }
+
+    .footer-bar {
+      margin-top: 40px;
+      border-top: 1px solid #ddd;
+      padding-top: 12px;
+    }
+
+    footer a {
+      color: #e50914;
+      text-decoration: none;
+      margin: 0 8px;
+      font-size: 12px;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .support-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #25d366;
+      color: white;
+      padding: 12px 18px;
+      border-radius: 50px;
+      font-weight: bold;
+      text-decoration: none;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+
+    .support-btn:hover {
+      background-color: #1ebd5b;
+    }
+
+    @media (max-width: 600px) {
+      .card {
+        width: 90%;
+        padding: 25px 15px;
+      }
+
+      input, button {
+        width: 100%;
+        font-size: 16px;
+      }
+
+      .faq-container h2 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <header>
+    <div class="header-left">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Henrique Store" class="logo-img">
+      <nav>
+        <a href="https://henriquestore.shop/" target="_blank">Nossa Loja</a>
+        <a href="https://www.henriquestore.site/" target="_blank">Códigos ChatGPT 4 Plus</a>
+        <a href="https://wa.me/message/MUTGSRO3R5VHG1" target="_blank">Suporte</a>
+      </nav>
+    </div>
+
+    <form class="language-select">
+      <label for="lang">{{ t.language_label }}</label>
+      <select onchange="location.href='/set_lang/' + this.value;" id="lang">
+        <option value="pt" {% if lang == 'pt' %}selected{% endif %}>Português</option>
+        <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+        <option value="es" {% if lang == 'es' %}selected{% endif %}>Español</option>
+        <option value="fr" {% if lang == 'fr' %}selected{% endif %}>Français</option>
+        <option value="de" {% if lang == 'de' %}selected{% endif %}>Deutsch</option>
+        <option value="zh" {% if lang == 'zh' %}selected{% endif %}>中文</option>
+        <option value="jp" {% if lang == 'jp' %}selected{% endif %}>日本語</option>
+        <option value="ko" {% if lang == 'ko' %}selected{% endif %}>한국어</option>
+	<option value="ar" {% if lang == 'ar' %}selected{% endif %}>عربي</option>
+      </select>
+    </form>
+  </header>
+
+  <main>
+    <div class="card">
+      <h1>🔍 {{ t.title }}</h1>
+      <form method="POST" id="codeForm" autocomplete="off">
+        <input type="email" name="email" placeholder="{{ t.placeholder }}" required value="{{ email }}">
+        <button type="submit">{{ t.button }}</button>
+      </form>
+
+      <div id="loadingMessage" class="result-box loading" style="display: none;">
+        {{ t.searching }}
+      </div>
+
+      {% if codigo %}
+        <div class="result-box success">{{ t.result }} <strong id="codigoText">{{ codigo }}</strong>
+          <button onclick="copiarCodigo()" style="margin-left: 10px; padding: 5px 10px; font-size: 14px;">📋 Copiar</button>
+        </div>
+      {% elif email %}
+        <div class="result-box error">{{ t.not_found }} <strong>{{ email }}</strong></div>
+      {% endif %}
+    </div>
+
+    <div class="help-container">
+      <div class="help-box">
+        {{ t.help_text }}
+        <a href="https://wa.me/message/MUTGSRO3R5VHG1" target="_blank"><strong>{{ t.click_here }}</strong></a>
+      </div>
+    </div>
+
+    <div class="faq-container">
+      <h2>❓ {{ t.faq_title }}</h2>
+      {% for i in range(1, 7) %}
+        <div class="faq-item">
+          <div class="faq-question">{{ i }}. {{ t['faq_q' ~ i|string] }}</div>
+          <div class="faq-answer">{{ t['faq_a' ~ i|string]|safe }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-bar">
+      <p>{{ t.footer_text }}</p>
+      <p>
+        <a href="https://www.instagram.com/henriquestoreoficial/" target="_blank">{{ t.instagram }}</a> |
+        <a href="https://henriquestore.shop/" target="_blank">{{ t.ggmax }}</a> |
+        <a href="https://wa.me/message/MUTGSRO3R5VHG1" target="_blank">{{ t.whatsapp }}</a>
+      </p>
+    </div>
+  </footer>
+
+  <a href="https://wa.me/message/MUTGSRO3R5VHG1" class="support-btn" target="_blank" title="{{ t.whatsapp_icon }}">{{ t.whatsapp_icon }}</a>
+
+  <script>
+    const form = document.getElementById("codeForm");
+    const loadingMessage = document.getElementById("loadingMessage");
+
+    if (form) {
+      form.addEventListener("submit", () => {
+        if (loadingMessage) {
+          loadingMessage.style.display = "block";
+        }
+      });
+    }
+
+    document.querySelectorAll('.faq-question').forEach(q => {
+      q.addEventListener('click', () => {
+        q.parentElement.classList.toggle('active');
+      });
+    });
+
+    function copiarCodigo() {
+      const codigo = document.getElementById("codigoText").textContent;
+      navigator.clipboard.writeText(codigo).then(() => {
+        alert("Código copiado com sucesso!");
+      });
+    }
+  </script>
+</body>
+</html>
