@@ -6,7 +6,7 @@ app.secret_key = 'chave_super_secreta_123'
 
 # Pré-definindo e-mails e senhas associadas
 email_senhas = {
-    "henriquestore743@gmail.com": "senha123",
+    "henriquestore743@gmail.com": "HenriqueStore123",
     "erass_manxga@telusservice.com": "123"
 }
 
