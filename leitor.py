@@ -13,15 +13,21 @@ def decode_mensagem(msg_bytes):
     except UnicodeDecodeError:
         return msg_bytes.decode("latin1", errors="replace")
 
-def buscar_codigo(email_referencia=None):
+def limpar_email_conteudo(body):
+    # Regex para remover a parte do rodapé e informações indesejadas
+    padrao = r"(MyDisney.*?© 2025 Disney and its related entities.*?SRC:.*?$)"
+    body = re.sub(padrao, '', body, flags=re.DOTALL)
+    return body
+
+def buscar_email_disney(email_referencia=None):
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(EMAIL, APP_PASSWORD)
         mail.select("inbox")
-        status, data = mail.search(None, '(FROM "netflix")')
+        status, data = mail.search(None, '(FROM "disney+")')  # Buscar e-mails da Disney+
         email_ids = data[0].split()
 
-        for eid in reversed(email_ids[-50:]):
+        for eid in reversed(email_ids[-1:]):  # Buscar apenas o último e-mail
             status, msg_data = mail.fetch(eid, "(RFC822)")
             raw_email = msg_data[0][1]
             msg = email.message_from_bytes(raw_email)
@@ -29,21 +35,94 @@ def buscar_codigo(email_referencia=None):
             body = ""
             if msg.is_multipart():
                 for part in msg.walk():
-                    if part.get_content_type() == "text/plain":
+                    if part.get_content_type() == "text/html":
                         body = decode_mensagem(part.get_payload(decode=True))
                         break
             else:
-                body = decode_mensagem(msg.get_payload(decode=True))
+                if msg.get_content_type() == "text/html":
+                    body = decode_mensagem(msg.get_payload(decode=True))
 
-            # 🔍 Filtra pelo e-mail do cliente no corpo da mensagem
+            body = limpar_email_conteudo(body)
+
             if email_referencia and email_referencia.lower() not in body.lower():
                 continue
 
-            # 🔐 Extrai o código de 4 dígitos
-            codigo = re.search(r"\b\d{4}\b", body)
-            if codigo:
-                return codigo.group()
+            return body, "Disney+"  # Marca como Disney+
 
-        return None
+        return "Nenhum e-mail encontrado.", "Disney+"
     except Exception as e:
-        return None
+        return f"Erro ao buscar e-mails: {e}", "Disney+"
+
+def buscar_email_netflix(email_referencia=None):
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
+        mail.login(EMAIL, APP_PASSWORD)
+        mail.select("inbox")
+
+        # Alterado para procurar pelo título (assunto) contendo exatamente "Netflix: Your sign-in code"
+        status, data = mail.search(None, '(SUBJECT "Netflix: Your sign-in code")')  # Buscar e-mails com o título exato
+        email_ids = data[0].split()
+
+        if not email_ids:
+            return "Nenhum e-mail encontrado.", "Netflix"  # Caso não haja e-mails
+
+        for eid in reversed(email_ids[-1:]):  # Buscar apenas o último e-mail
+            status, msg_data = mail.fetch(eid, "(RFC822)")
+            raw_email = msg_data[0][1]
+            msg = email.message_from_bytes(raw_email)
+
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/html":
+                        body = decode_mensagem(part.get_payload(decode=True))
+                        break
+            else:
+                if msg.get_content_type() == "text/html":
+                    body = decode_mensagem(msg.get_payload(decode=True))
+
+            body = limpar_email_conteudo(body)
+
+            if email_referencia and email_referencia.lower() not in body.lower():
+                continue
+
+            return body, "Netflix"  # Marca como Netflix
+
+        return "Nenhum e-mail encontrado.", "Netflix"
+    except Exception as e:
+        return f"Erro ao buscar e-mails: {e}", "Netflix"
+
+
+def buscar_email_prime(email_referencia=None):
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
+        mail.login(EMAIL, APP_PASSWORD)
+        mail.select("inbox")
+        status, data = mail.search(None, '(FROM "amazon")')  # Buscar e-mails do Prime Video
+        email_ids = data[0].split()
+
+        for eid in reversed(email_ids[-1:]):  # Buscar apenas o último e-mail
+            status, msg_data = mail.fetch(eid, "(RFC822)")
+            raw_email = msg_data[0][1]
+            msg = email.message_from_bytes(raw_email)
+
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/html":
+                        body = decode_mensagem(part.get_payload(decode=True))
+                        break
+            else:
+                if msg.get_content_type() == "text/html":
+                    body = decode_mensagem(msg.get_payload(decode=True))
+
+            body = limpar_email_conteudo(body)
+
+            if email_referencia and email_referencia.lower() not in body.lower():
+                continue
+
+            return body, "Prime Video"  # Marca como Prime Video
+
+        return "Nenhum e-mail encontrado.", "Prime Video"
+    except Exception as e:
+        return f"Erro ao buscar e-mails: {e}", "Prime Video"
