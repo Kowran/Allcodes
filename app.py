@@ -6,8 +6,10 @@ app.secret_key = 'chave_super_secreta_123'
 
 # Pré-definindo e-mails e senhas associadas
 email_senhas = {
-    "henriquestore743@gmail.com": "HenriqueStore123",
-    "erass_manxga@telusservice.com": "123"
+    "disney1240@streammanager.com.br": "zxc123ZXC",
+    "disney2808@streammanager.com.br": "Disney2025",
+    "disney0007@streammanager.com.br": "Disney2025",
+    "streamanager06@fjs01.com": "123456"
 }
 
 # Traduções para os idiomas
