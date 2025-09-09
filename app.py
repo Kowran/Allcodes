@@ -1,153 +1,215 @@
-from flask import Flask, render_template, request, redirect, url_for, session
-from leitor import buscar_email_disney, buscar_email_netflix, buscar_email_prime
+import os
+from datetime import datetime
+from typing import Optional, Dict
 
+from flask import (
+    Flask, render_template, request, redirect, url_for, flash, make_response
+)
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
+from cryptography.fernet import Fernet, InvalidToken
+from dotenv import load_dotenv
+
+# Carrega variáveis do .env
+load_dotenv()
+
+# Busca o e-mail do código e retorna o HTML
+from leitor import fetch_login_code_email_html
+
+# -----------------------------------------------------------------------------
+# App
+# -----------------------------------------------------------------------------
 app = Flask(__name__)
-app.secret_key = 'chave_super_secreta_123'
+app.secret_key = os.environ.get("SECRET_KEY", "dev_fallback_change_me")
 
-# Pré-definindo e-mails e senhas associadas
-email_senhas = {
-    "disney1240@streammanager.com.br": "zxc123ZXC",
-    "disney2808@streammanager.com.br": "Disney2025",
-    "disney0007@streammanager.com.br": "Disney2025",
-    "streamanager06@fjs01.com": "123456"
-}
+# -----------------------------------------------------------------------------
+# Banco (SQLite local / Postgres Heroku com psycopg3)
+# -----------------------------------------------------------------------------
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local.db")
 
-# Traduções para os idiomas
-TRANSLATIONS = {
-    'pt': {
-        'store_name': 'Henrique Store',
-        'instagram': 'Instagram',
-        'whatsapp': 'WhatsApp',
-        'ggmax': 'Nossa Loja',
-        'title': 'Buscar e-mail',
-        'placeholder': 'Digite o e-mail da conta',
-        'button': 'Buscar',
-        'password_placeholder': 'Digite a senha',
-        'result': 'Última mensagem encontrada:',
-        'not_found': 'Nenhuma mensagem encontrada para',
-        'incorrect_password': 'Senha incorreta! Tente novamente.',
-        'language_label': '🌐 Idioma:',
-        'service_label': 'Escolha o serviço:',
-        'footer_text': '© 2025 Henrique Store – Todos os direitos reservados.',
-        'whatsapp_icon': '💬 Suporte',
-        'help_text': 'Se precisar de ajuda, entre em contato conosco!',
-        'click_here': 'Clique aqui',
-        'searching': 'Procurando...',
-    },
-    'en': {
-        'store_name': 'Henrique Store',
-        'instagram': 'Instagram',
-        'whatsapp': 'WhatsApp',
-        'ggmax': 'Our Store',
-        'title': 'Find Email',
-        'placeholder': 'Enter account email',
-        'button': 'Search',
-        'password_placeholder': 'Enter password',
-        'result': 'Last message found:',
-        'not_found': 'No message found for',
-        'incorrect_password': 'Incorrect password! Please try again.',
-        'language_label': '🌐 Language:',
-        'service_label': 'Choose the service:',
-        'footer_text': '© 2025 Henrique Store – All rights reserved.',
-        'whatsapp_icon': '💬 Support',
-        'help_text': 'If you need help, contact us!',
-        'click_here': 'Click here',
-        'searching': 'Searching...',
-    },
-    'es': {
-        'store_name': 'Henrique Store',
-        'instagram': 'Instagram',
-        'whatsapp': 'WhatsApp',
-        'ggmax': 'Nuestra Tienda',
-        'title': 'Buscar correo electrónico',
-        'placeholder': 'Introduzca el correo electrónico de la cuenta',
-        'button': 'Buscar',
-        'password_placeholder': 'Introduzca la contraseña',
-        'result': 'Último mensaje encontrado:',
-        'not_found': 'No se encontró ningún mensaje para',
-        'incorrect_password': '¡Contraseña incorrecta! Inténtalo de nuevo.',
-        'language_label': '🌐 Idioma:',
-        'service_label': 'Elija el servicio:',
-        'footer_text': '© 2025 Henrique Store – Todos los derechos reservados.',
-        'whatsapp_icon': '💬 Soporte',
-        'help_text': 'Si necesitas ayuda, contáctanos!',
-        'click_here': 'Haz clic aquí',
-        'searching': 'Buscando...',
-    },
-    'fr': {
-        'store_name': 'Henrique Store',
-        'instagram': 'Instagram',
-        'whatsapp': 'WhatsApp',
-        'ggmax': 'Notre Boutique',
-        'title': 'Trouver un e-mail',
-        'placeholder': 'Entrez l\'email du compte',
-        'button': 'Rechercher',
-        'password_placeholder': 'Entrez le mot de passe',
-        'result': 'Dernier message trouvé:',
-        'not_found': 'Aucun message trouvé pour',
-        'incorrect_password': 'Mot de passe incorrect! Veuillez réessayer.',
-        'language_label': '🌐 Langue:',
-        'service_label': 'Choisir le service:',
-        'footer_text': '© 2025 Henrique Store – Tous droits réservés.',
-        'whatsapp_icon': '💬 Support',
-        'help_text': 'Si vous avez besoin d\'aide, contactez-nous!',
-        'click_here': 'Cliquez ici',
-        'searching': 'Recherche...',
-    },
-    'de': {
-        'store_name': 'Henrique Store',
-        'instagram': 'Instagram',
-        'whatsapp': 'WhatsApp',
-        'ggmax': 'Unser Geschäft',
-        'title': 'E-Mail finden',
-        'placeholder': 'Geben Sie die E-Mail des Kontos ein',
-        'button': 'Suchen',
-        'password_placeholder': 'Passwort eingeben',
-        'result': 'Letzte Nachricht gefunden:',
-        'not_found': 'Keine Nachricht gefunden für',
-        'incorrect_password': 'Falsches Passwort! Bitte versuche es erneut.',
-        'language_label': '🌐 Sprache:',
-        'service_label': 'Wählen Sie den Service:',
-        'footer_text': '© 2025 Henrique Store – Alle Rechte vorbehalten.',
-        'whatsapp_icon': '💬 Unterstützung',
-        'help_text': 'Wenn Sie Hilfe benötigen, kontaktieren Sie uns!',
-        'click_here': 'Klicken Sie hier',
-        'searching': 'Suche...',
+# Heroku antigo: "postgres://". Convertemos para o dialect do psycopg3.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+
+engine = create_engine(DATABASE_URL, future=True)
+
+def ensure_schema():
+    """Cria a tabela se não existir."""
+    is_sqlite = DATABASE_URL.startswith("sqlite")
+    id_col = "INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "BIGSERIAL PRIMARY KEY"
+    with engine.begin() as conn:
+        conn.execute(text(f"""
+        CREATE TABLE IF NOT EXISTS streaming_accounts (
+            id {id_col},
+            platform TEXT NOT NULL,
+            email TEXT NOT NULL,
+            password_enc TEXT NOT NULL,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL,
+            CONSTRAINT uq_platform_email UNIQUE (platform, email)
+        )
+        """))
+ensure_schema()
+
+# -----------------------------------------------------------------------------
+# Criptografia de senha (Fernet)
+# -----------------------------------------------------------------------------
+FERNET_KEY = os.environ.get("FERNET_KEY")
+if not FERNET_KEY:
+    FERNET_KEY = Fernet.generate_key().decode()
+
+cipher = Fernet(FERNET_KEY)
+
+def enc(p: str) -> str:
+    return cipher.encrypt((p or "").encode()).decode()
+
+def dec(p_enc: Optional[str]) -> str:
+    if not p_enc:
+        return ""
+    try:
+        return cipher.decrypt(p_enc.encode()).decode()
+    except (InvalidToken, Exception):
+        return "***erro-de-chave***"
+
+# -----------------------------------------------------------------------------
+# i18n – textos usados no template
+# -----------------------------------------------------------------------------
+T: Dict[str, Dict[str, str]] = {
+    "pt": {
+        "store_name": "Henrique Store",
+        "title": "Buscar Códigos",
+        "language_label": "Idioma",
+        "whatsapp_icon": "WhatsApp",
+        "service_label": "Selecione o serviço",
+        "placeholder": "Seu e-mail da conta",
+        "password_placeholder": "Sua senha",
+        "button": "Buscar",
+        "searching": "Buscando…",
+        "incorrect_password": "Senha incorreta.",
+        "result": "Resultado",
+        "not_found": "Conta não encontrada para",
+        "help_text": "Precisou de ajuda?",
+        "click_here": "Clique aqui",
+        "footer_text": "© Henrique Store – Todos os direitos reservados.",
+        "instagram": "Instagram",
+        "ggmax": "Loja",
+        "whatsapp": "WhatsApp",
     }
 }
 
+def get_lang() -> str:
+    lang = request.cookies.get("lang") or "pt"
+    return lang if lang in T else "pt"
 
-@app.route('/', methods=['GET', 'POST'])
+# -----------------------------------------------------------------------------
+# Rotas
+# -----------------------------------------------------------------------------
+@app.get("/")
 def index():
-    email = ''
-    senha = ''
-    mensagem = None
-    service = None
-    lang = session.get('lang', 'pt')
-    t = TRANSLATIONS.get(lang, TRANSLATIONS['pt'])
+    lang = get_lang()
+    t = T[lang]
+    return render_template("index.html", lang=lang, t=t, mensagem=None, email="", service="disney")
 
-    if request.method == 'POST':
-        email = request.form.get('email')
-        senha = request.form.get('senha')
-        service = request.form.get('service')
+@app.post("/")
+def index_post():
+    lang = get_lang()
+    t = T[lang]
 
-        if email in email_senhas and email_senhas[email] == senha:
-            if service == 'disney':
-                mensagem, service = buscar_email_disney(email)
-            elif service == 'netflix':
-                mensagem, service = buscar_email_netflix(email)
-            elif service == 'prime':
-                mensagem, service = buscar_email_prime(email)
-        else:
-            mensagem = t['incorrect_password']  # Mensagem de erro com a tradução correta
+    service = (request.form.get("service") or "").strip().lower()
+    email = (request.form.get("email") or "").strip()
+    senha = (request.form.get("senha") or "").strip()
 
-    return render_template("index.html", t=t, email=email, mensagem=mensagem, lang=lang, service=service)
+    with Session(engine) as s:
+        found = s.execute(
+            text("""SELECT id, platform, email, password_enc, notes, created_at
+                    FROM streaming_accounts
+                    WHERE platform = :p AND email = :e
+                    LIMIT 1"""),
+            {"p": service, "e": email},
+        ).mappings().first()
 
-@app.route('/set_lang/<lang>')
-def set_language(lang):
-    if lang in TRANSLATIONS:
-        session['lang'] = lang
-    return redirect(url_for('index'))
+    if not found:
+        return render_template("index.html", lang=lang, t=t, mensagem=None, email=email, service=service)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    if dec(found["password_enc"]) != senha:
+        return render_template("index.html", lang=lang, t=t,
+                               mensagem=t["incorrect_password"], email=email, service=service)
+
+    # --- Filtros de assunto por serviço ---
+    subject_filter = None
+    if service == "disney":
+        subject_filter = "Your one-time passcode for Disney+"
+    elif service == "netflix":
+        subject_filter = "Netflix: Your sign-in code"
+
+    email_html = fetch_login_code_email_html(
+        service=service,
+        target_email=email,
+        lookback_days=7,
+        max_scan=200,
+        required_subject_substr=subject_filter,  # << Disney e Netflix filtrados por título
+    )
+
+    if not email_html:
+        safe_notes = (found.get("notes") or "")
+        email_html = f"""
+        <div>
+            <p><strong>E-mail:</strong> {found['email']}</p>
+            <p><strong>Serviço:</strong> {found['platform'].capitalize()}</p>
+            <p><strong>Status:</strong> ✅ Login válido</p>
+            {"<p><em>" + safe_notes + "</em></p>" if safe_notes else ""}
+            <p style='color:#666'><em>Não localizei um e-mail recente com código para exibir.</em></p>
+        </div>
+        """
+
+    return render_template("index.html", lang=lang, t=t,
+                           mensagem=email_html, email=email, service=service)
+
+# --- CRUD simples de contas ---
+@app.get("/accounts")
+def accounts_page():
+    lang = get_lang()
+    with Session(engine) as s:
+        rows = s.execute(text("""
+            SELECT id, platform, email, password_enc, notes, created_at
+            FROM streaming_accounts
+            ORDER BY created_at DESC
+        """)).mappings().all()
+    return render_template("accounts.html", lang=lang, t=T[lang], accounts=rows)
+
+@app.post("/accounts")
+def accounts_create():
+    platform = (request.form.get("platform") or "").strip().lower()
+    email = (request.form.get("email") or "").strip()
+    password = (request.form.get("password") or "").strip()
+    notes = (request.form.get("notes") or "").strip()
+
+    if platform not in {"disney", "netflix", "prime"} or not email or not password:
+        flash("Preencha corretamente plataforma, e-mail e senha.", "error")
+        return redirect(url_for("accounts_page"))
+
+    with Session(engine) as s:
+        s.execute(text("""
+            INSERT INTO streaming_accounts (platform, email, password_enc, notes, created_at)
+            VALUES (:p, :e, :pw, :n, :ts)
+        """), {"p": platform, "e": email, "pw": enc(password), "n": notes, "ts": datetime.utcnow()})
+        s.commit()
+    flash("Conta adicionada.", "success")
+    return redirect(url_for("accounts_page"))
+
+@app.post("/accounts/<int:acc_id>/delete")
+def accounts_delete(acc_id: int):
+    with Session(engine) as s:
+        s.execute(text("DELETE FROM streaming_accounts WHERE id=:i"), {"i": acc_id})
+        s.commit()
+    flash("Conta removida.", "info")
+    return redirect(url_for("accounts_page"))
+
+# -----------------------------------------------------------------------------
+# Run local
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)
