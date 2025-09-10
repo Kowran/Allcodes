@@ -21,6 +21,14 @@
   <p><a href="{{ url_for('index') }}">&larr; Voltar</a></p>
   <h2>Contas de Streaming</h2>
 
+	<p style="display:flex;justify-content:space-between;align-items:center">
+  		<a href="{{ url_for('index') }}">&larr; Voltar</a>
+  		<form method="post" action="{{ url_for('admin_logout') }}">
+    		<button class="btn-outline" type="submit">Sair</button>
+  		</form>
+	</p>
+
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for cat,msg in messages %}

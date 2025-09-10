@@ -1,20 +1,22 @@
 import os
 from datetime import datetime
 from typing import Optional, Dict
+from functools import wraps
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash, make_response
+    Flask, render_template, request, redirect, url_for, flash, make_response, session
 )
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv
+from werkzeug.security import check_password_hash
 
 # Carrega variáveis do .env
 load_dotenv()
 
 # Busca o e-mail do código e retorna o HTML
-from leitor import fetch_login_code_email_html
+from leitor import fetch_login_code_email_html  # noqa: E402
 
 # -----------------------------------------------------------------------------
 # App
@@ -104,7 +106,60 @@ def get_lang() -> str:
     return lang if lang in T else "pt"
 
 # -----------------------------------------------------------------------------
-# Rotas
+# Autenticação admin (simples por sessão)
+# -----------------------------------------------------------------------------
+ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")  # texto puro (opcional)
+ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH")  # hash (opcional)
+
+def _verify_admin_password(pw: str) -> bool:
+    # Se houver hash, prioriza hash
+    if ADMIN_PASSWORD_HASH:
+        try:
+            return check_password_hash(ADMIN_PASSWORD_HASH, pw)
+        except Exception:
+            return False
+    # Caso contrário, usa comparação direta com ADMIN_PASSWORD
+    if ADMIN_PASSWORD is None:
+        return False
+    return pw == ADMIN_PASSWORD
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("is_admin"):
+            nxt = request.path or url_for("accounts_page")
+            return redirect(url_for("admin_login", next=nxt))
+        return view(*args, **kwargs)
+    return wrapped
+
+@app.get("/admin/login")
+def admin_login():
+    nxt = request.args.get("next") or url_for("accounts_page")
+    return render_template("admin_login.html", next=nxt)
+
+@app.post("/admin/login")
+def admin_login_post():
+    username = (request.form.get("username") or "").strip()
+    password = (request.form.get("password") or "")
+    nxt = request.form.get("next") or url_for("accounts_page")
+
+    if username == ADMIN_USER and _verify_admin_password(password):
+        session["is_admin"] = True
+        flash("Login efetuado com sucesso.", "success")
+        return redirect(nxt)
+    else:
+        flash("Credenciais inválidas.", "error")
+        return redirect(url_for("admin_login", next=nxt))
+
+@app.post("/admin/logout")
+def admin_logout():
+    session.clear()
+    flash("Sessão encerrada.", "info")
+    return redirect(url_for("admin_login"))
+
+# -----------------------------------------------------------------------------
+# Rotas públicas
 # -----------------------------------------------------------------------------
 @app.get("/")
 def index():
@@ -137,20 +192,27 @@ def index_post():
         return render_template("index.html", lang=lang, t=t,
                                mensagem=t["incorrect_password"], email=email, service=service)
 
-    # --- Filtros de assunto por serviço ---
+    # ----- Filtro de assunto por serviço -----
     subject_filter = None
+    subject_keywords = None  # NOVO: lista de palavras para match em assunto
+
     if service == "disney":
         subject_filter = "Your one-time passcode for Disney+"
     elif service == "netflix":
         subject_filter = "Netflix: Your sign-in code"
+    elif service in {"prime", "amazon", "amazon prime"}:
+        # aceita 'Código', 'codigo', 'code', 'codes'
+        subject_keywords = ["Código", "codigo", "code", "codes"]
 
     email_html = fetch_login_code_email_html(
         service=service,
         target_email=email,
         lookback_days=7,
         max_scan=200,
-        required_subject_substr=subject_filter,  # << Disney e Netflix filtrados por título
+        required_subject_substr=subject_filter,     # compat com serviços antigos
+        required_subject_keywords=subject_keywords  # NOVO p/ Amazon/Prime
     )
+    # -----------------------------------------
 
     if not email_html:
         safe_notes = (found.get("notes") or "")
@@ -167,8 +229,11 @@ def index_post():
     return render_template("index.html", lang=lang, t=t,
                            mensagem=email_html, email=email, service=service)
 
-# --- CRUD simples de contas ---
+# -----------------------------------------------------------------------------
+# Rotas protegidas (admin)
+# -----------------------------------------------------------------------------
 @app.get("/accounts")
+@admin_required
 def accounts_page():
     lang = get_lang()
     with Session(engine) as s:
@@ -180,13 +245,14 @@ def accounts_page():
     return render_template("accounts.html", lang=lang, t=T[lang], accounts=rows)
 
 @app.post("/accounts")
+@admin_required
 def accounts_create():
     platform = (request.form.get("platform") or "").strip().lower()
     email = (request.form.get("email") or "").strip()
     password = (request.form.get("password") or "").strip()
     notes = (request.form.get("notes") or "").strip()
 
-    if platform not in {"disney", "netflix", "prime"} or not email or not password:
+    if platform not in {"disney", "netflix", "prime", "amazon"} or not email or not password:
         flash("Preencha corretamente plataforma, e-mail e senha.", "error")
         return redirect(url_for("accounts_page"))
 
@@ -200,6 +266,7 @@ def accounts_create():
     return redirect(url_for("accounts_page"))
 
 @app.post("/accounts/<int:acc_id>/delete")
+@admin_required
 def accounts_delete(acc_id: int):
     with Session(engine) as s:
         s.execute(text("DELETE FROM streaming_accounts WHERE id=:i"), {"i": acc_id})
