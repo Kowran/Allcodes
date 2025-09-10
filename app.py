@@ -4,18 +4,18 @@ from typing import Optional, Dict
 from functools import wraps
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash, make_response, session
+    Flask, render_template, request, redirect, url_for, flash, session
 )
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from cryptography.fernet import Fernet, InvalidToken
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from werkzeug.security import check_password_hash
 
-# Carrega variáveis do .env
-load_dotenv()
+# Carrega variáveis do .env (funciona mesmo se rodar de outra pasta)
+load_dotenv(find_dotenv(), override=False)
 
-# Busca o e-mail do código e retorna o HTML
+# Importa o leitor de e-mails
 from leitor import fetch_login_code_email_html  # noqa: E402
 
 # -----------------------------------------------------------------------------
@@ -29,7 +29,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev_fallback_change_me")
 # -----------------------------------------------------------------------------
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local.db")
 
-# Heroku antigo: "postgres://". Convertemos para o dialect do psycopg3.
+# Ajuste de dialect para psycopg3 quando for Postgres
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
@@ -60,6 +60,7 @@ ensure_schema()
 # -----------------------------------------------------------------------------
 FERNET_KEY = os.environ.get("FERNET_KEY")
 if not FERNET_KEY:
+    # OBS: Em produção, defina FERNET_KEY fixa em config vars para não perder a chave.
     FERNET_KEY = Fernet.generate_key().decode()
 
 cipher = Fernet(FERNET_KEY)
@@ -113,13 +114,11 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")  # texto puro (opcional)
 ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH")  # hash (opcional)
 
 def _verify_admin_password(pw: str) -> bool:
-    # Se houver hash, prioriza hash
     if ADMIN_PASSWORD_HASH:
         try:
             return check_password_hash(ADMIN_PASSWORD_HASH, pw)
         except Exception:
             return False
-    # Caso contrário, usa comparação direta com ADMIN_PASSWORD
     if ADMIN_PASSWORD is None:
         return False
     return pw == ADMIN_PASSWORD
@@ -192,26 +191,46 @@ def index_post():
         return render_template("index.html", lang=lang, t=t,
                                mensagem=t["incorrect_password"], email=email, service=service)
 
-    # ----- Filtro de assunto por serviço -----
+    # ----- Filtros de assunto/remetente por serviço -----
     subject_filter = None
-    subject_keywords = None  # NOVO: lista de palavras para match em assunto
+    subject_keywords = None
+    from_filters = None
+    forbidden_subject = None
 
     if service == "disney":
         subject_filter = "Your one-time passcode for Disney+"
+
     elif service == "netflix":
         subject_filter = "Netflix: Your sign-in code"
-    elif service in {"prime", "amazon", "amazon prime"}:
-        # aceita 'Código', 'codigo', 'code', 'codes'
-        subject_keywords = ["Código", "codigo", "code", "codes"]
 
-    email_html = fetch_login_code_email_html(
-        service=service,
-        target_email=email,
-        lookback_days=7,
-        max_scan=200,
-        required_subject_substr=subject_filter,     # compat com serviços antigos
-        required_subject_keywords=subject_keywords  # NOVO p/ Amazon/Prime
-    )
+    elif service in {"prime", "amazon", "amazon prime"}:
+        # Palavras esperadas no assunto (vários idiomas)
+        subject_keywords = ["código", "codigo", "code", "codes", "otp", "verification", "verificação"]
+        # Remetente deve parecer Amazon/PrimeVideo
+        from_filters = ["amazon", "amazon.com", "primevideo", "primevideo.com"]
+        # Bloqueia Netflix se aparecer no assunto
+        forbidden_subject = ["netflix"]
+
+    # Busca o e-mail com tratamento de erro para evitar 500
+    try:
+        email_html = fetch_login_code_email_html(
+            service=service,
+            target_email=email,
+            lookback_days=7,
+            max_scan=200,
+            required_subject_substr=subject_filter,
+            required_subject_keywords=subject_keywords,
+            required_from_contains=from_filters,
+            forbidden_subject_keywords=forbidden_subject,
+        )
+    except Exception as e:
+        print("ERRO AO BUSCAR EMAIL:", repr(e))
+        email_html = """
+        <div style="color:#b00020">
+          <strong>Não foi possível buscar o e-mail agora.</strong><br>
+          Verifique as configurações do servidor de e-mail (IMAP) e tente novamente.
+        </div>
+        """
     # -----------------------------------------
 
     if not email_html:
