@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.cache/
+.venv/
+venv/
+env/
+
+# VSCode / IDE
+.vscode/
+.idea/
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Flask/Build
+instance/
+dist/
+build/
+
+# Banco local e segredos
+local.db
+*.sqlite3
+.env
+.python-version

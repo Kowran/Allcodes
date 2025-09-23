@@ -1,0 +1,10 @@
+[build]
+  # Não há front-end para “buildar”; instalamos deps na pasta da function
+  command = "pip install -r requirements.txt -t netlify/functions && cp -r templates static netlify/functions/ || true"
+  functions = "netlify/functions"
+
+# Redireciona todas as rotas HTTP para a function Flask
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/app_handler"
+  status = 200
