@@ -198,7 +198,7 @@ def index_post():
     forbidden_subject = None
 
     if service == "disney":
-        subject_filter = ["Your one-time passcode for Disney+", "Tu código de acceso único para Disney+"]
+        subject_keywords = ["Your one-time passcode for Disney+", "Tu código de acceso único para Disney+"]
 
     elif service == "netflix":
         subject_filter = "Netflix: Your sign-in code"
