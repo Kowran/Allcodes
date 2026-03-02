@@ -295,13 +295,59 @@ def index_post():
 @admin_required
 def accounts_page():
     lang = get_lang()
+
+    # Filtros / paginação
+    q = (request.args.get("q") or "").strip()
+    try:
+        per_page = int(request.args.get("per_page") or 20)
+    except ValueError:
+        per_page = 20
+    per_page = max(5, min(per_page, 200))
+
+    try:
+        page = int(request.args.get("page") or 1)
+    except ValueError:
+        page = 1
+    page = max(page, 1)
+
+    where = ""
+    params = {}
+    if q:
+        where = "WHERE lower(email) LIKE :q"
+        params["q"] = f"%{q.lower()}%"
+
     with Session(engine) as s:
-        rows = s.execute(text("""
-            SELECT id, platform, email, password_enc, notes, created_at
-            FROM streaming_accounts
-            ORDER BY created_at DESC
-        """)).mappings().all()
-    return render_template("accounts.html", lang=lang, t=T[lang], accounts=rows)
+        total = s.execute(
+            text(f"SELECT COUNT(1) AS c FROM streaming_accounts {where}"),
+            params,
+        ).mappings().first()["c"]
+
+        total_pages = max(1, (int(total) + per_page - 1) // per_page)
+        page = min(page, total_pages)
+        offset = (page - 1) * per_page
+
+        rows = s.execute(
+            text(f"""
+                SELECT id, platform, email, password_enc, notes, created_at
+                FROM streaming_accounts
+                {where}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """),
+            {**params, "limit": per_page, "offset": offset},
+        ).mappings().all()
+
+    return render_template(
+        "accounts.html",
+        lang=lang,
+        t=T[lang],
+        accounts=rows,
+        q=q,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+    )
 
 @app.post("/accounts")
 @admin_required
