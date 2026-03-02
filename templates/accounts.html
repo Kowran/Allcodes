@@ -3,19 +3,31 @@
 <head>
   <meta charset="utf-8">
   <title>Contas de Streaming</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <style>
+    body{ font-family:'Poppins',sans-serif; margin:20px; }
+    table{ border-collapse:collapse; width:100%; }
+    th,td{ border:1px solid #ddd; padding:8px; }
+    th{ background:#f5f5f5; text-align:left; }
+    .muted{ color:#666; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    input,select,button{ padding:10px; font-family:'Poppins',sans-serif; }
+    .btn{ background:#e50914; color:#fff; border:none; cursor:pointer; }
+    .btn-outline{ background:#fff; color:#e50914; border:1px solid #e50914; cursor:pointer; }
+    .flash{ margin:10px 0; padding:10px; border-radius:6px; }
+  </style>
 </head>
-<body class="admin-page">
-  <div class="admin-topbar">
-    <a class="admin-back" href="{{ url_for('index') }}">&larr; Voltar</a>
-    <form method="post" action="{{ url_for('admin_logout') }}">
-      <button class="btn-outline" type="submit">Sair</button>
-    </form>
-  </div>
-
+<body>
+  <p><a href="{{ url_for('index') }}">&larr; Voltar</a></p>
   <h2>Contas de Streaming</h2>
+
+	<p style="display:flex;justify-content:space-between;align-items:center">
+  		<a href="{{ url_for('index') }}">&larr; Voltar</a>
+  		<form method="post" action="{{ url_for('admin_logout') }}">
+    		<button class="btn-outline" type="submit">Sair</button>
+  		</form>
+	</p>
+
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -24,18 +36,6 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
-
-  <h3>Buscar</h3>
-  <form method="get" action="{{ url_for('accounts_page') }}" class="row">
-    <input type="text" name="search" placeholder="Buscar por e-mail" value="{{ search or '' }}">
-    <select name="per_page">
-      <option value="5" {% if per_page==5 %}selected{% endif %}>5 por página</option>
-      <option value="10" {% if per_page==10 %}selected{% endif %}>10 por página</option>
-      <option value="20" {% if per_page==20 %}selected{% endif %}>20 por página</option>
-      <option value="50" {% if per_page==50 %}selected{% endif %}>50 por página</option>
-    </select>
-    <button class="btn" type="submit">Buscar</button>
-  </form>
 
   <h3>Adicionar nova</h3>
   <form method="post" action="{{ url_for('accounts_create') }}">
@@ -46,7 +46,6 @@
         <option value="netflix">Netflix</option>
         <option value="prime">Prime Video</option>
         <option value="crunchyroll">Crunchyroll</option>
-        <option value="max">Max (HBO Max)</option>
       </select>
       <input type="email" name="email" placeholder="email da conta" required>
       <input type="text" name="password" placeholder="senha" required>
@@ -78,21 +77,8 @@
         {% endfor %}
       </tbody>
     </table>
-
-    <div class="pagination">
-      {% if page > 1 %}
-        <a class="btn-outline" href="{{ url_for('accounts_page', page=page-1, per_page=per_page, search=search) }}">Anterior</a>
-      {% endif %}
-
-      <span class="muted">Página {{ page }} de {{ total_pages }}</span>
-
-      {% if page < total_pages %}
-        <a class="btn-outline" href="{{ url_for('accounts_page', page=page+1, per_page=per_page, search=search) }}">Próxima</a>
-      {% endif %}
-    </div>
-
   {% else %}
-    <p class="muted">Nenhuma conta encontrada.</p>
+    <p class="muted">Nenhuma conta cadastrada.</p>
   {% endif %}
 </body>
 </html>
