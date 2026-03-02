@@ -12,15 +12,24 @@ from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv, find_dotenv
 from werkzeug.security import check_password_hash
 
+# Carrega variáveis do .env (funciona mesmo se rodar de outra pasta)
 load_dotenv(find_dotenv(), override=False)
 
+# Importa o leitor de e-mails
 from leitor import fetch_login_code_email_html  # noqa: E402
 
+# -----------------------------------------------------------------------------
+# App
+# -----------------------------------------------------------------------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_fallback_change_me")
 
+# -----------------------------------------------------------------------------
+# Banco (SQLite local / Postgres Heroku com psycopg3)
+# -----------------------------------------------------------------------------
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local.db")
 
+# Ajuste de dialect para psycopg3 quando for Postgres
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
@@ -29,6 +38,7 @@ elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL
 engine = create_engine(DATABASE_URL, future=True)
 
 def ensure_schema():
+    """Cria a tabela se não existir."""
     is_sqlite = DATABASE_URL.startswith("sqlite")
     id_col = "INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "BIGSERIAL PRIMARY KEY"
     with engine.begin() as conn:
@@ -45,8 +55,12 @@ def ensure_schema():
         """))
 ensure_schema()
 
+# -----------------------------------------------------------------------------
+# Criptografia de senha (Fernet)
+# -----------------------------------------------------------------------------
 FERNET_KEY = os.environ.get("FERNET_KEY")
 if not FERNET_KEY:
+    # OBS: Em produção, defina FERNET_KEY fixa em config vars para não perder a chave.
     FERNET_KEY = Fernet.generate_key().decode()
 
 cipher = Fernet(FERNET_KEY)
@@ -62,6 +76,9 @@ def dec(p_enc: Optional[str]) -> str:
     except (InvalidToken, Exception):
         return "***erro-de-chave***"
 
+# -----------------------------------------------------------------------------
+# i18n – textos usados no template
+# -----------------------------------------------------------------------------
 T: Dict[str, Dict[str, str]] = {
     "pt": {
         "store_name": "Henrique Store",
@@ -89,9 +106,12 @@ def get_lang() -> str:
     lang = request.cookies.get("lang") or "pt"
     return lang if lang in T else "pt"
 
+# -----------------------------------------------------------------------------
+# Autenticação admin (simples por sessão)
+# -----------------------------------------------------------------------------
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")  # texto puro (opcional)
+ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH")  # hash (opcional)
 
 def _verify_admin_password(pw: str) -> bool:
     if ADMIN_PASSWORD_HASH:
@@ -137,62 +157,151 @@ def admin_logout():
     flash("Sessão encerrada.", "info")
     return redirect(url_for("admin_login"))
 
+# -----------------------------------------------------------------------------
+# Rotas públicas
+# -----------------------------------------------------------------------------
 @app.get("/")
 def index():
     lang = get_lang()
     t = T[lang]
     return render_template("index.html", lang=lang, t=t, mensagem=None, email="", service="disney")
 
-# ==============================
-# ACCOUNTS COM BUSCA + PAGINAÇÃO
-# ==============================
+@app.post("/")
+def index_post():
+    lang = get_lang()
+    t = T[lang]
+
+    service = (request.form.get("service") or "").strip().lower()
+    email = (request.form.get("email") or "").strip()
+    senha = (request.form.get("senha") or "").strip()
+
+    # Evita buscas IMAP sem filtro em caso de "service" inválido.
+    # (Sem isso, um service desconhecido poderia acabar exibindo o e-mail mais recente da caixa.)
+    # Mantém alguns aliases por compatibilidade.
+    # NOTE: Mantemos alguns aliases por compatibilidade.
+    # "max" é o nome atual do serviço (antigo HBO Max) em vários mercados.
+    allowed_services = {
+        "disney",
+        "netflix",
+        "prime",
+        "amazon",
+        "amazon prime",
+        "crunchyroll",
+        "max",
+        "hbomax",
+        "hbo max",
+    }
+    if service not in allowed_services:
+        return render_template(
+            "index.html",
+            lang=lang,
+            t=t,
+            mensagem="Serviço inválido.",
+            email=email,
+            service=service,
+        )
+
+    # Para compatibilidade com bases já existentes, tentamos achar a conta
+    # considerando alguns aliases de plataforma.
+    platform_candidates = [service]
+    if service in {"prime", "amazon", "amazon prime"}:
+        platform_candidates = ["prime", "amazon"]
+    elif service in {"max", "hbomax", "hbo max"}:
+        platform_candidates = ["max", "hbomax", "hbo max"]
+
+    where_platform = " OR ".join([f"platform = :p{i}" for i in range(len(platform_candidates))])
+    params = {"e": email}
+    for i, p in enumerate(platform_candidates):
+        params[f"p{i}"] = p
+
+    with Session(engine) as s:
+        found = s.execute(
+            text(f"""SELECT id, platform, email, password_enc, notes, created_at
+                    FROM streaming_accounts
+                    WHERE ({where_platform}) AND email = :e
+                    LIMIT 1"""),
+            params,
+        ).mappings().first()
+
+    if not found:
+        return render_template("index.html", lang=lang, t=t, mensagem=None, email=email, service=service)
+
+    if dec(found["password_enc"]) != senha:
+        return render_template("index.html", lang=lang, t=t,
+                               mensagem=t["incorrect_password"], email=email, service=service)
+
+    # ----- Filtros de assunto/remetente por serviço -----
+    subject_filter = None
+    subject_keywords = None
+    from_filters = None
+    forbidden_subject = None
+
+    if service == "disney":
+        subject_keywords = ["Your one-time passcode for Disney+", "Tu código de acceso único para Disney+"]
+
+    elif service == "netflix":
+        subject_filter = "Netflix: Your sign-in code"
+
+    elif service in {"prime", "amazon", "amazon prime"}:
+        subject_keywords = ["Verifi"]
+
+    elif service == "crunchyroll":
+        subject_keywords = ["Confirma tu nuevo inicio"]
+
+    elif service in {"max", "hbomax", "hbo max"}:
+        subject_keywords = ["Urgente: Tu código de un solo uso"]
+
+    # Busca o e-mail com tratamento de erro para evitar 500
+    try:
+        email_html = fetch_login_code_email_html(
+            service=service,
+            target_email=email,
+            lookback_days=7,
+            max_scan=200,
+            required_subject_substr=subject_filter,
+            required_subject_keywords=subject_keywords,
+            required_from_contains=from_filters,
+            forbidden_subject_keywords=forbidden_subject,
+        )
+    except Exception as e:
+        print("ERRO AO BUSCAR EMAIL:", repr(e))
+        email_html = """
+        <div style="color:#b00020">
+          <strong>Não foi possível buscar o e-mail agora.</strong><br>
+          Verifique as configurações do servidor de e-mail (IMAP) e tente novamente.
+        </div>
+        """
+    # -----------------------------------------
+
+    if not email_html:
+        safe_notes = (found.get("notes") or "")
+        email_html = f"""
+        <div>
+            <p><strong>E-mail:</strong> {found['email']}</p>
+            <p><strong>Serviço:</strong> {found['platform'].capitalize()}</p>
+            <p><strong>Status:</strong> ✅ Login válido</p>
+            {"<p><em>" + safe_notes + "</em></p>" if safe_notes else ""}
+            <p style='color:#666'><em>Não localizei um e-mail recente com código para exibir.</em></p>
+        </div>
+        """
+
+    return render_template("index.html", lang=lang, t=t,
+                           mensagem=email_html, email=email, service=service)
+
+# -----------------------------------------------------------------------------
+# Rotas protegidas (admin)
+# -----------------------------------------------------------------------------
 @app.get("/accounts")
 @admin_required
 def accounts_page():
     lang = get_lang()
-
-    search_email = (request.args.get("search") or "").strip()
-    page = int(request.args.get("page", 1))
-    per_page = int(request.args.get("per_page", 10))
-
-    if per_page not in {5, 10, 20, 50}:
-        per_page = 10
-
-    offset = (page - 1) * per_page
-
-    where_clause = ""
-    params = {}
-
-    if search_email:
-        where_clause = "WHERE email LIKE :search"
-        params["search"] = f"%{search_email}%"
-
     with Session(engine) as s:
-        total = s.execute(text(f"""
-            SELECT COUNT(*) FROM streaming_accounts
-            {where_clause}
-        """), params).scalar()
-
-        rows = s.execute(text(f"""
+        rows = s.execute(text("""
             SELECT id, platform, email, password_enc, notes, created_at
             FROM streaming_accounts
-            {where_clause}
             ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-        """), {**params, "limit": per_page, "offset": offset}).mappings().all()
-
-    total_pages = (total // per_page) + (1 if total % per_page else 0)
-
-    return render_template(
-        "accounts.html",
-        lang=lang,
-        t=T[lang],
-        accounts=rows,
-        search=search_email,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages
-    )
+        """)).mappings().all()
+    return render_template("accounts.html", lang=lang, t=T[lang], accounts=rows)
 
 @app.post("/accounts")
 @admin_required
@@ -202,6 +311,7 @@ def accounts_create():
     password = (request.form.get("password") or "").strip()
     notes = (request.form.get("notes") or "").strip()
 
+    # Canonicaliza alguns aliases na inserção
     if platform in {"hbomax", "hbo max"}:
         platform = "max"
     if platform == "amazon prime":
@@ -229,6 +339,9 @@ def accounts_delete(acc_id: int):
     flash("Conta removida.", "info")
     return redirect(url_for("accounts_page"))
 
+# -----------------------------------------------------------------------------
+# Run local
+# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=True)
