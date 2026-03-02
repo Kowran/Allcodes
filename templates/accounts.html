@@ -17,7 +17,6 @@
 
   <h2>Contas de Streaming</h2>
 
-
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for cat,msg in messages %}
@@ -25,6 +24,18 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
+
+  <h3>Buscar</h3>
+  <form method="get" action="{{ url_for('accounts_page') }}" class="row">
+    <input type="text" name="search" placeholder="Buscar por e-mail" value="{{ search or '' }}">
+    <select name="per_page">
+      <option value="5" {% if per_page==5 %}selected{% endif %}>5 por página</option>
+      <option value="10" {% if per_page==10 %}selected{% endif %}>10 por página</option>
+      <option value="20" {% if per_page==20 %}selected{% endif %}>20 por página</option>
+      <option value="50" {% if per_page==50 %}selected{% endif %}>50 por página</option>
+    </select>
+    <button class="btn" type="submit">Buscar</button>
+  </form>
 
   <h3>Adicionar nova</h3>
   <form method="post" action="{{ url_for('accounts_create') }}">
@@ -67,8 +78,21 @@
         {% endfor %}
       </tbody>
     </table>
+
+    <div class="pagination">
+      {% if page > 1 %}
+        <a class="btn-outline" href="{{ url_for('accounts_page', page=page-1, per_page=per_page, search=search) }}">Anterior</a>
+      {% endif %}
+
+      <span class="muted">Página {{ page }} de {{ total_pages }}</span>
+
+      {% if page < total_pages %}
+        <a class="btn-outline" href="{{ url_for('accounts_page', page=page+1, per_page=per_page, search=search) }}">Próxima</a>
+      {% endif %}
+    </div>
+
   {% else %}
-    <p class="muted">Nenhuma conta cadastrada.</p>
+    <p class="muted">Nenhuma conta encontrada.</p>
   {% endif %}
 </body>
 </html>
