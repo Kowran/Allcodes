@@ -304,7 +304,7 @@ def index_post():
         subject_filter = "Netflix: Your sign-in code"
 
     elif service in {"prime", "amazon", "amazon prime"}:
-        subject_keywords = ["Verifi"]
+        subject_keywords = ["Tentativa de login"]
 
     elif service == "crunchyroll":
         subject_keywords = ["Confirma tu nuevo inicio"]
