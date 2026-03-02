@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <title>{{ t.store_name }} – {{ t.title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Página multilíngue para buscar códigos de login da Disney+, Netflix e Prime Video com suporte por WhatsApp.">
+  <meta name="description" content="{{ t['meta_description'] }}">
   <meta name="theme-color" content="#0b1020">
 
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -28,11 +28,10 @@
 
     <form class="language-select">
       <label for="lang">{{ t['language_label'] }}</label>
-      <select onchange="location.href='/set_lang/' + this.value;" id="lang">
-        <option value="pt" {% if lang == 'pt' %}selected{% endif %}>Português</option>
-        <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+      <select onchange="location.href=('{{ url_for('set_lang', lang_code='__LANG__') }}').replace('__LANG__', this.value);" id="lang">
         <option value="es" {% if lang == 'es' %}selected{% endif %}>Español</option>
-        <option value="fr" {% if lang == 'fr' %}selected{% endif %}>Français</option>
+        <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+        <option value="pt" {% if lang == 'pt' %}selected{% endif %}>Português</option>
       </select>
     </form>
   </header>
@@ -60,14 +59,14 @@
       </div>
 
       {% if mensagem %}
-  {% set is_error = mensagem == t['incorrect_password'] %}
+  {% set is_error = mensagem in [t['incorrect_password'], t['invalid_service']] %}
   <div class="result-box {{ 'error' if is_error else 'success' }}">
     {% if is_error %}
       <strong>{{ mensagem }}</strong> <!-- Mensagem de erro -->
     {% else %}
       <h3>{{ t['result'] }}</h3>
       <div id="emailContent">
-        <strong>Serviço: {{ service }}</strong> <br><br>
+        <strong>{{ t['service'] }}: {{ service }}</strong> <br><br>
         {{ mensagem|safe }}  <!-- Exibe o conteúdo do e-mail -->
       </div>
     {% endif %}
