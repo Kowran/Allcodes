@@ -175,6 +175,20 @@ def index_post():
     email = (request.form.get("email") or "").strip()
     senha = (request.form.get("senha") or "").strip()
 
+    # Evita buscas IMAP sem filtro em caso de "service" inválido.
+    # (Sem isso, um service desconhecido poderia acabar exibindo o e-mail mais recente da caixa.)
+    # Mantém alguns aliases por compatibilidade.
+    allowed_services = {"disney", "netflix", "prime", "amazon", "amazon prime", "crunchyroll"}
+    if service not in allowed_services:
+        return render_template(
+            "index.html",
+            lang=lang,
+            t=t,
+            mensagem="Serviço inválido.",
+            email=email,
+            service=service,
+        )
+
     with Session(engine) as s:
         found = s.execute(
             text("""SELECT id, platform, email, password_enc, notes, created_at
@@ -210,6 +224,17 @@ def index_post():
         from_filters = ["amazon", "amazon.com", "primevideo", "primevideo.com"]
         # Bloqueia Netflix se aparecer no assunto
         forbidden_subject = ["netflix"]
+
+    elif service == "crunchyroll":
+        # Importante: este filtro foi pensado para localizar e-mails gerais da Crunchyroll
+        # (ex.: avisos/recibos/novidades) e **evitar** e-mails de autenticação.
+        # Isso reduz o risco de expor códigos/OTP por engano.
+        subject_keywords = ["crunchyroll"]
+        from_filters = ["crunchyroll", "crunchyroll.com"]
+        forbidden_subject = [
+            "code", "codigo", "código", "verification", "verify", "otp",
+            "2fa", "two-factor", "sign-in", "login", "access", "acesso",
+        ]
 
     # Busca o e-mail com tratamento de erro para evitar 500
     try:
@@ -271,7 +296,7 @@ def accounts_create():
     password = (request.form.get("password") or "").strip()
     notes = (request.form.get("notes") or "").strip()
 
-    if platform not in {"disney", "netflix", "prime", "amazon"} or not email or not password:
+    if platform not in {"disney", "netflix", "prime", "amazon", "crunchyroll"} or not email or not password:
         flash("Preencha corretamente plataforma, e-mail e senha.", "error")
         return redirect(url_for("accounts_page"))
 
