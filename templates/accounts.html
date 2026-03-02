@@ -93,9 +93,12 @@
           <td class="muted">{{ a.notes or '' }}</td>
           <td class="muted">{{ a.created_at }}</td>
           <td>
-            <form method="post" action="{{ url_for('accounts_delete', acc_id=a.id) }}" onsubmit="return confirm('Remover esta conta?');">
-              <button class="btn-outline" type="submit">Remover</button>
-            </form>
+            <div class="row" style="gap: 8px; align-items: center; justify-content: flex-start; flex-wrap: wrap;">
+              <a class="btn-outline" href="{{ url_for('accounts_edit_page', acc_id=a.id, next=request.full_path) }}">Editar</a>
+              <form method="post" action="{{ url_for('accounts_delete', acc_id=a.id) }}" onsubmit="return confirm('Remover esta conta?');">
+                <button class="btn-outline" type="submit">Remover</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}
