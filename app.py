@@ -178,7 +178,19 @@ def index_post():
     # Evita buscas IMAP sem filtro em caso de "service" inválido.
     # (Sem isso, um service desconhecido poderia acabar exibindo o e-mail mais recente da caixa.)
     # Mantém alguns aliases por compatibilidade.
-    allowed_services = {"disney", "netflix", "prime", "amazon", "amazon prime", "crunchyroll"}
+    # NOTE: Mantemos alguns aliases por compatibilidade.
+    # "max" é o nome atual do serviço (antigo HBO Max) em vários mercados.
+    allowed_services = {
+        "disney",
+        "netflix",
+        "prime",
+        "amazon",
+        "amazon prime",
+        "crunchyroll",
+        "max",
+        "hbomax",
+        "hbo max",
+    }
     if service not in allowed_services:
         return render_template(
             "index.html",
@@ -189,13 +201,26 @@ def index_post():
             service=service,
         )
 
+    # Para compatibilidade com bases já existentes, tentamos achar a conta
+    # considerando alguns aliases de plataforma.
+    platform_candidates = [service]
+    if service in {"prime", "amazon", "amazon prime"}:
+        platform_candidates = ["prime", "amazon"]
+    elif service in {"max", "hbomax", "hbo max"}:
+        platform_candidates = ["max", "hbomax", "hbo max"]
+
+    where_platform = " OR ".join([f"platform = :p{i}" for i in range(len(platform_candidates))])
+    params = {"e": email}
+    for i, p in enumerate(platform_candidates):
+        params[f"p{i}"] = p
+
     with Session(engine) as s:
         found = s.execute(
-            text("""SELECT id, platform, email, password_enc, notes, created_at
+            text(f"""SELECT id, platform, email, password_enc, notes, created_at
                     FROM streaming_accounts
-                    WHERE platform = :p AND email = :e
+                    WHERE ({where_platform}) AND email = :e
                     LIMIT 1"""),
-            {"p": service, "e": email},
+            params,
         ).mappings().first()
 
     if not found:
@@ -234,6 +259,22 @@ def index_post():
         forbidden_subject = [
             "code", "codigo", "código", "verification", "verify", "otp",
             "2fa", "two-factor", "sign-in", "login", "access", "acesso",
+        ]
+
+    elif service in {"max", "hbomax", "hbo max"}:
+        # Max (antigo HBO Max)
+        # Importante: por segurança, este filtro foi pensado para localizar e-mails
+        # gerais do serviço e **evitar** mensagens de autenticação (OTP / verificação /
+        # redefinição de senha), reduzindo o risco de expor códigos.
+        subject_keywords = ["max", "hbo max", "hbomax"]
+        from_filters = ["hbomax", "hbomax.com", "max.com"]
+        forbidden_subject = [
+            # autenticação / verificação
+            "code", "codigo", "código", "verification", "verify", "otp",
+            "2fa", "two-factor", "one-time", "passcode",
+            "sign-in", "signin", "login", "entrar", "acesso", "access",
+            # recuperação de conta
+            "password", "senha", "reset", "redefinir", "redefine", "recuper",
         ]
 
     # Busca o e-mail com tratamento de erro para evitar 500
@@ -296,7 +337,13 @@ def accounts_create():
     password = (request.form.get("password") or "").strip()
     notes = (request.form.get("notes") or "").strip()
 
-    if platform not in {"disney", "netflix", "prime", "amazon", "crunchyroll"} or not email or not password:
+    # Canonicaliza alguns aliases na inserção
+    if platform in {"hbomax", "hbo max"}:
+        platform = "max"
+    if platform == "amazon prime":
+        platform = "prime"
+
+    if platform not in {"disney", "netflix", "prime", "amazon", "crunchyroll", "max"} or not email or not password:
         flash("Preencha corretamente plataforma, e-mail e senha.", "error")
         return redirect(url_for("accounts_page"))
 
