@@ -385,6 +385,81 @@ def accounts_delete(acc_id: int):
     flash("Conta removida.", "info")
     return redirect(url_for("accounts_page"))
 
+
+@app.get("/accounts/<int:acc_id>/edit")
+@admin_required
+def accounts_edit_page(acc_id: int):
+    """Página para editar uma conta (admin)."""
+    lang = get_lang()
+    next_url = request.args.get("next") or url_for("accounts_page")
+
+    with Session(engine) as s:
+        row = s.execute(
+            text(
+                """
+                SELECT id, platform, email, notes, created_at
+                FROM streaming_accounts
+                WHERE id=:i
+                """
+            ),
+            {"i": acc_id},
+        ).mappings().first()
+
+    if not row:
+        flash("Conta não encontrada.", "error")
+        return redirect(next_url)
+
+    return render_template(
+        "account_edit.html",
+        lang=lang,
+        t=T[lang],
+        account=row,
+        next_url=next_url,
+    )
+
+
+@app.post("/accounts/<int:acc_id>/edit")
+@admin_required
+def accounts_edit_save(acc_id: int):
+    """Salva alterações de uma conta (admin)."""
+    next_url = request.form.get("next") or url_for("accounts_page")
+
+    email = (request.form.get("email") or "").strip()
+    password = (request.form.get("password") or "").strip()
+    notes = (request.form.get("notes") or "").strip()
+
+    if not email:
+        flash("Informe um e-mail válido.", "error")
+        return redirect(url_for("accounts_edit_page", acc_id=acc_id, next=next_url))
+
+    with Session(engine) as s:
+        if password:
+            s.execute(
+                text(
+                    """
+                    UPDATE streaming_accounts
+                    SET email=:e, notes=:n, password_enc=:pw
+                    WHERE id=:i
+                    """
+                ),
+                {"e": email, "n": notes, "pw": enc(password), "i": acc_id},
+            )
+        else:
+            s.execute(
+                text(
+                    """
+                    UPDATE streaming_accounts
+                    SET email=:e, notes=:n
+                    WHERE id=:i
+                    """
+                ),
+                {"e": email, "n": notes, "i": acc_id},
+            )
+        s.commit()
+
+    flash("Conta atualizada.", "success")
+    return redirect(next_url)
+
 # -----------------------------------------------------------------------------
 # Run local
 # -----------------------------------------------------------------------------
