@@ -258,7 +258,7 @@ def index_post():
         from_filters = ["crunchyroll", "crunchyroll.com"]
         forbidden_subject = [
             "code", "codigo", "código", "verification", "verify", "otp",
-            "2fa", "two-factor", "sign-in", "login", "access", "acesso",
+            "confirme", "two-factor", "sign-in", "login", "access", "acesso",
         ]
 
     elif service in {"max", "hbomax", "hbo max"}:
