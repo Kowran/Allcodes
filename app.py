@@ -4,7 +4,7 @@ from typing import Optional, Dict
 from functools import wraps
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash, session
+    Flask, render_template, request, redirect, url_for, flash, session, make_response
 )
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
@@ -80,12 +80,61 @@ def dec(p_enc: Optional[str]) -> str:
 # i18n – textos usados no template
 # -----------------------------------------------------------------------------
 T: Dict[str, Dict[str, str]] = {
+    "es": {
+        "store_name": "StreamManager",
+        "title": "Buscar Códigos",
+        "meta_description": "Página multilingüe para buscar códigos de inicio de sesión de Disney+, Netflix y Prime Video con soporte por WhatsApp.",
+        "language_label": "Idioma",
+        "whatsapp_icon": "WhatsApp",
+        "service_label": "Seleccione el servicio",
+        "service": "Servicio",
+        "invalid_service": "Servicio inválido.",
+        "placeholder": "Tu correo de la cuenta",
+        "password_placeholder": "Tu contraseña",
+        "button": "Buscar",
+        "searching": "Buscando…",
+        "incorrect_password": "Contraseña incorrecta.",
+        "result": "Resultado",
+        "not_found": "Cuenta no encontrada para",
+        "help_text": "¿Necesitas ayuda?",
+        "click_here": "Haz clic aquí",
+        "footer_text": "© StreamManager – Todos los derechos reservados.",
+        "instagram": "Instagram",
+        "ggmax": "Tienda",
+        "whatsapp": "WhatsApp",
+    },
+    "en": {
+        "store_name": "StreamManager",
+        "title": "Find Codes",
+        "meta_description": "Multilingual page to retrieve login codes for Disney+, Netflix and Prime Video with WhatsApp support.",
+        "language_label": "Language",
+        "whatsapp_icon": "WhatsApp",
+        "service_label": "Select the service",
+        "service": "Service",
+        "invalid_service": "Invalid service.",
+        "placeholder": "Account email",
+        "password_placeholder": "Password",
+        "button": "Search",
+        "searching": "Searching…",
+        "incorrect_password": "Incorrect password.",
+        "result": "Result",
+        "not_found": "Account not found for",
+        "help_text": "Need help?",
+        "click_here": "Click here",
+        "footer_text": "© StreamManager – All rights reserved.",
+        "instagram": "Instagram",
+        "ggmax": "Store",
+        "whatsapp": "WhatsApp",
+    },
     "pt": {
         "store_name": "StreamManager",
         "title": "Buscar Códigos",
+        "meta_description": "Página multilíngue para buscar códigos de login da Disney+, Netflix e Prime Video com suporte por WhatsApp.",
         "language_label": "Idioma",
         "whatsapp_icon": "WhatsApp",
         "service_label": "Selecione o serviço",
+        "service": "Serviço",
+        "invalid_service": "Serviço inválido.",
         "placeholder": "Seu e-mail da conta",
         "password_placeholder": "Sua senha",
         "button": "Buscar",
@@ -99,12 +148,24 @@ T: Dict[str, Dict[str, str]] = {
         "instagram": "Instagram",
         "ggmax": "Loja",
         "whatsapp": "WhatsApp",
-    }
+    },
 }
 
 def get_lang() -> str:
-    lang = request.cookies.get("lang") or "pt"
-    return lang if lang in T else "pt"
+    lang = request.cookies.get("lang") or "es"
+    return lang if lang in T else "es"
+
+@app.get("/set_lang/<lang_code>")
+def set_lang(lang_code: str):
+    # valida idioma e salva em cookie
+    if lang_code not in T:
+        lang_code = "es"
+    resp = make_response(redirect(request.referrer or url_for("index")))
+    # cookie por 1 ano
+    resp.set_cookie("lang", lang_code, max_age=60 * 60 * 24 * 365, samesite="Lax")
+    return resp
+
+
 
 # -----------------------------------------------------------------------------
 # Autenticação admin (simples por sessão)
@@ -196,7 +257,7 @@ def index_post():
             "index.html",
             lang=lang,
             t=t,
-            mensagem="Serviço inválido.",
+            mensagem=t["invalid_service"],
             email=email,
             service=service,
         )
