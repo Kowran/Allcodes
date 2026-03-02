@@ -45,7 +45,41 @@
   </form>
 
   <h3>Lista</h3>
+  <form method="get" action="{{ url_for('accounts_page') }}" class="row" style="margin: 10px 0 18px 0; gap: 10px; align-items: center;">
+    <input
+      type="text"
+      name="q"
+      placeholder="Buscar por e-mail (ex: gmail.com)"
+      value="{{ q or '' }}"
+      style="flex: 1; min-width: 220px;"
+    >
+
+    <select name="per_page" onchange="this.form.submit()" title="Contas por página" style="max-width: 200px;">
+      {% set _pp = per_page or 20 %}
+      <option value="10" {% if _pp == 10 %}selected{% endif %}>10 / página</option>
+      <option value="20" {% if _pp == 20 %}selected{% endif %}>20 / página</option>
+      <option value="50" {% if _pp == 50 %}selected{% endif %}>50 / página</option>
+      <option value="100" {% if _pp == 100 %}selected{% endif %}>100 / página</option>
+    </select>
+
+    <button class="btn" type="submit">Buscar</button>
+
+    {% if q %}
+      <a class="btn-outline" href="{{ url_for('accounts_page', per_page=per_page or 20) }}">Limpar</a>
+    {% endif %}
+  </form>
+
   {% if accounts and accounts|length>0 %}
+    {% set _total = total or (accounts|length) %}
+    {% set _page = page or 1 %}
+    {% set _per = per_page or 20 %}
+    {% set start_i = ((_page - 1) * _per) + 1 %}
+    {% set end_i = ((_page - 1) * _per) + (accounts|length) %}
+    <p class="muted" style="margin: 0 0 10px 0;">
+      Mostrando {{ start_i }}–{{ end_i }} de {{ _total }} conta(s)
+      {% if q %} para <strong>{{ q }}</strong>{% endif %}.
+    </p>
+
     <table>
       <thead>
         <tr><th>ID</th><th>Plataforma</th><th>E-mail</th><th>Obs.</th><th>Criado em</th><th>Ações</th></tr>
@@ -67,6 +101,27 @@
         {% endfor %}
       </tbody>
     </table>
+
+    {% if (total_pages or 1) > 1 %}
+      <div class="row" style="margin-top: 14px; gap: 10px; align-items: center; justify-content: flex-start;">
+        {% set _tp = total_pages or 1 %}
+        {% set _p = page or 1 %}
+
+        {% if _p > 1 %}
+          <a class="btn-outline" href="{{ url_for('accounts_page', q=q, per_page=per_page, page=_p-1) }}">&larr; Anterior</a>
+        {% else %}
+          <span class="btn-outline" style="opacity:.5; pointer-events:none;">&larr; Anterior</span>
+        {% endif %}
+
+        <span class="muted">Página {{ _p }} de {{ _tp }}</span>
+
+        {% if _p < _tp %}
+          <a class="btn-outline" href="{{ url_for('accounts_page', q=q, per_page=per_page, page=_p+1) }}">Próxima &rarr;</a>
+        {% else %}
+          <span class="btn-outline" style="opacity:.5; pointer-events:none;">Próxima &rarr;</span>
+        {% endif %}
+      </div>
+    {% endif %}
   {% else %}
     <p class="muted">Nenhuma conta cadastrada.</p>
   {% endif %}
