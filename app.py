@@ -81,7 +81,7 @@ def dec(p_enc: Optional[str]) -> str:
 # -----------------------------------------------------------------------------
 T: Dict[str, Dict[str, str]] = {
     "pt": {
-        "store_name": "Henrique Store",
+        "store_name": "StreamManager",
         "title": "Buscar Códigos",
         "language_label": "Idioma",
         "whatsapp_icon": "WhatsApp",
@@ -95,7 +95,7 @@ T: Dict[str, Dict[str, str]] = {
         "not_found": "Conta não encontrada para",
         "help_text": "Precisou de ajuda?",
         "click_here": "Clique aqui",
-        "footer_text": "© Henrique Store – Todos os direitos reservados.",
+        "footer_text": "© StreamManager – Todos os direitos reservados.",
         "instagram": "Instagram",
         "ggmax": "Loja",
         "whatsapp": "WhatsApp",
