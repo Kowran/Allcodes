@@ -471,7 +471,8 @@ def accounts_edit_page(acc_id: int):
         return redirect(next_url)
 
     return render_template(
-        "account_edit.html",
+        # NOTE: template file name is pluralized in /templates
+        "accounts_edit.html",
         lang=lang,
         t=T[lang],
         account=row,
