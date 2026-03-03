@@ -16,24 +16,37 @@
 <body>
 
   <!-- Cabeçalho -->
-  <header>
-    <div class="header-left">
-      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="StreamManager" class="logo-img">
-      <nav>
-        <a href="https://henriquestore.shop/" target="_blank">{{ t['store_name'] }}</a>
-        <a href="https://www.henriquestore.site/" target="_blank">{{ t['title'] }}</a>
-        <a href="https://wa.me/message/MUTGSRO3R5VHG1" target="_blank">{{ t['whatsapp_icon'] }}</a>
+  <header class="site-header">
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="StreamManager" class="logo-img">
+
+    <button
+      class="menu-toggle"
+      type="button"
+      aria-label="{{ t.get('menu', 'Menu') }}"
+      aria-controls="siteMenu"
+      aria-expanded="false"
+    >
+      <span class="menu-toggle__icon" aria-hidden="true"></span>
+    </button>
+
+    <div class="header-menu" id="siteMenu">
+      <nav class="header-nav">
+        <a href="https://henriquestore.shop/" target="_blank" rel="noopener noreferrer">{{ t['store_name'] }}</a>
+        <a href="https://www.henriquestore.site/" target="_blank" rel="noopener noreferrer">{{ t['title'] }}</a>
+        <a href="https://wa.me/message/MUTGSRO3R5VHG1" target="_blank" rel="noopener noreferrer">{{ t['whatsapp_icon'] }}</a>
       </nav>
+
+      <form class="language-select">
+        <label for="lang">{{ t['language_label'] }}</label>
+        <select onchange="location.href=('{{ url_for('set_lang', lang_code='__LANG__') }}').replace('__LANG__', this.value);" id="lang">
+          <option value="es" {% if lang == 'es' %}selected{% endif %}>Español</option>
+          <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+          <option value="pt" {% if lang == 'pt' %}selected{% endif %}>Português</option>
+        </select>
+      </form>
     </div>
 
-    <form class="language-select">
-      <label for="lang">{{ t['language_label'] }}</label>
-      <select onchange="location.href=('{{ url_for('set_lang', lang_code='__LANG__') }}').replace('__LANG__', this.value);" id="lang">
-        <option value="es" {% if lang == 'es' %}selected{% endif %}>Español</option>
-        <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
-        <option value="pt" {% if lang == 'pt' %}selected{% endif %}>Português</option>
-      </select>
-    </form>
+    <div class="menu-backdrop" data-menu-backdrop aria-hidden="true"></div>
   </header>
 
   <main>
@@ -97,6 +110,8 @@
   </footer>
 
   <a href="https://wa.me/message/MUTGSRO3R5VHG1" class="support-btn" target="_blank" title="{{ t['whatsapp_icon'] }}">{{ t['whatsapp_icon'] }}</a>
+
+  <script src="{{ url_for('static', filename='js/header.js') }}"></script>
 
 </body>
 </html>
