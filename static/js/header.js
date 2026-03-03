@@ -16,6 +16,31 @@
 
     if (!toggle || !menu) return;
 
+    // --- Mobile: disable zoom gestures (pinch / double-tap) ---
+    // Meta viewport does most of the work; these listeners help on iOS Safari.
+    (function lockZoomOnMobile() {
+      var isTouch = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+      var isMobile = window.matchMedia ? window.matchMedia('(max-width: 600px)').matches : true;
+      if (!isTouch || !isMobile) return;
+
+      // iOS pinch zoom events
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (evt) {
+        document.addEventListener(evt, function (e) {
+          e.preventDefault();
+        }, { passive: false });
+      });
+
+      // Double-tap zoom prevention
+      var lastTouchEnd = 0;
+      document.addEventListener('touchend', function (e) {
+        var now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
+    })();
+
     function isOpen() {
       return document.body.classList.contains('menu-open');
     }
