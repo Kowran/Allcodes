@@ -32,16 +32,16 @@
     <strong>Criado em:</strong> {{ account.created_at }}
   </p>
 
-  <form method="post" action="{{ url_for('accounts_edit_save', acc_id=account.id) }}" style="margin-top: 14px;">
+  <form method="post" action="{{ url_for('accounts_edit_save', acc_id=account.id) }}" class="admin-edit-form">
     <input type="hidden" name="next" value="{{ next_url or url_for('accounts_page') }}">
 
-    <div class="row" style="gap: 10px; align-items: center; flex-wrap: wrap;">
-      <input type="email" name="email" placeholder="e-mail da conta" value="{{ account.email }}" required style="min-width: 260px; flex: 1;">
-      <input type="text" name="password" placeholder="nova senha (opcional)" style="min-width: 220px; flex: 1;">
-      <input type="text" name="notes" placeholder="observações" value="{{ account.notes or '' }}" style="min-width: 260px; flex: 2;">
+    <div class="admin-edit-grid">
+      <input type="email" name="email" placeholder="e-mail da conta" value="{{ account.email }}" required>
+      <input type="text" name="password" placeholder="nova senha (opcional)">
+      <input type="text" name="notes" placeholder="observações" value="{{ account.notes or '' }}">
     </div>
 
-    <div class="row" style="margin-top: 14px; gap: 10px; align-items: center;">
+    <div class="admin-edit-actions">
       <button class="btn" type="submit">Salvar</button>
       <a class="btn-outline" href="{{ next_url or url_for('accounts_page') }}">Cancelar</a>
     </div>
