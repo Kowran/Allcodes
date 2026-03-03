@@ -452,6 +452,36 @@ table{
   background:rgba(255,255,255,.03);
 }
 
+/* --- Admin edit form layout --- */
+.admin-edit-form{ margin-top:14px; }
+
+.admin-edit-grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:10px;
+  align-items:center;
+}
+
+.admin-edit-grid input,
+.admin-edit-grid select{
+  width:100%;
+  min-width:0;
+  text-align:left;
+  text-align-last:left;
+}
+
+.admin-edit-grid input::placeholder{ text-align:left; }
+
+.admin-edit-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-top:14px;
+}
+
+.admin-edit-actions .btn{ width:auto; }
+
 th,td{
   border-bottom:1px solid rgba(255,255,255,.06);
   padding:10px 10px;
@@ -572,6 +602,52 @@ tr:hover td{ background:rgba(255,255,255,.03); }
 
   body.admin-page{ padding:16px; }
   .row input, .row select{ min-width: 100%; }
+
+  /* Account list table -> stacked cards */
+  .admin-table thead{ display:none; }
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td{ display:block; width:100%; }
+
+  .admin-table{
+    border:none;
+    background:transparent;
+  }
+
+  .admin-table tr{
+    margin:12px 0;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(255,255,255,.03);
+    overflow:hidden;
+  }
+
+  .admin-table td{
+    border:none;
+    padding:10px 12px;
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:flex-start;
+  }
+
+  .admin-table td::before{
+    content:attr(data-label);
+    font-weight:700;
+    color:rgba(231,234,240,.90);
+    flex:0 0 auto;
+  }
+
+  .admin-table td[data-label="Ações"]{ display:block; }
+  .admin-table td[data-label="Ações"] .row{ width:100%; justify-content:flex-start; }
+  .admin-table td[data-label="Ações"] .btn-outline{ width:100%; text-align:center; }
+  .admin-table td[data-label="Ações"] form{ width:100%; }
+
+  /* Edit page grid */
+  .admin-edit-grid{ grid-template-columns: 1fr; }
+  .admin-edit-actions .btn,
+  .admin-edit-actions .btn-outline{ width:100%; text-align:center; }
 }
 
 /* Scrollbars (WebKit) */
