@@ -29,6 +29,17 @@
 *{ box-sizing:border-box; }
 html{ color-scheme: dark; }
 
+/* Mobile UX guardrails:
+   - avoid any horizontal panning
+   - allow only vertical scroll gestures (pan-y)
+   Note: iOS Safari ignores touch-action for pinch zoom; JS handles it. */
+html, body{
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+  touch-action: pan-y;
+  width:100%;
+}
+
 html[dir="rtl"]{ --drawer-closed: -100%; }
 
 body{
@@ -493,7 +504,7 @@ tr:hover td{ background:rgba(255,255,255,.03); }
   /* Keep forms full width, but do NOT stretch the hamburger button */
   input, select, button:not(.menu-toggle), .btn{ width:100%; }
 
-  header{ padding:12px 16px; flex-wrap:nowrap; position:relative; z-index:2101; }
+  header{ padding:12px 16px; flex-wrap:nowrap; position:relative; z-index:4100; }
 
   /* Show hamburger on mobile */
   .menu-toggle{ display:inline-flex; }
@@ -514,7 +525,7 @@ tr:hover td{ background:rgba(255,255,255,.03); }
     justify-content:flex-start;
     gap:18px;
     transform:translateX(var(--drawer-closed));
-    z-index:2000;
+    z-index:4000;
   
     visibility:hidden;
     pointer-events:none;
@@ -532,7 +543,7 @@ tr:hover td{ background:rgba(255,255,255,.03); }
     opacity:0;
     pointer-events:none;
     transition: opacity .22s ease;
-    z-index:1500;
+    z-index:3900;
   }
 
   body.menu-open .menu-backdrop{
