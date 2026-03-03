@@ -81,19 +81,19 @@
       {% if q %} para <strong>{{ q }}</strong>{% endif %}.
     </p>
 
-    <table>
+    <table class="admin-table">
       <thead>
         <tr><th>ID</th><th>Plataforma</th><th>E-mail</th><th>Obs.</th><th>Criado em</th><th>Ações</th></tr>
       </thead>
       <tbody>
         {% for a in accounts %}
         <tr>
-          <td>{{ a.id }}</td>
-          <td>{{ a.platform }}</td>
-          <td>{{ a.email }}</td>
-          <td class="muted">{{ a.notes or '' }}</td>
-          <td class="muted">{{ a.created_at }}</td>
-          <td>
+          <td data-label="ID">{{ a.id }}</td>
+          <td data-label="Plataforma">{{ a.platform }}</td>
+          <td data-label="E-mail">{{ a.email }}</td>
+          <td data-label="Obs." class="muted">{{ a.notes or '' }}</td>
+          <td data-label="Criado em" class="muted">{{ a.created_at }}</td>
+          <td data-label="Ações">
             <div class="row" style="gap: 8px; align-items: center; justify-content: flex-start; flex-wrap: wrap;">
               <a class="btn-outline" href="{{ url_for('accounts_edit_page', acc_id=a.id, next=request.full_path) }}">Editar</a>
               <form method="post" action="{{ url_for('accounts_delete', acc_id=a.id) }}" onsubmit="return confirm('Remover esta conta?');">
