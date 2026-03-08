@@ -83,7 +83,7 @@ T: Dict[str, Dict[str, str]] = {
     "es": {
         "store_name": "StreamManager",
         "title": "Buscar Códigos",
-        "meta_description": "Página multilingüe para buscar códigos de inicio de sesión de Disney+, Netflix y Prime Video con soporte por WhatsApp.",
+        "meta_description": "Página multilingüe para buscar códigos de inicio de sesión de Disney+, Netflix, Prime Video, Mubi y otros servicios con soporte por WhatsApp.",
         "language_label": "Idioma",
         "whatsapp_icon": "WhatsApp",
         "service_label": "Seleccione el servicio",
@@ -106,7 +106,7 @@ T: Dict[str, Dict[str, str]] = {
     "en": {
         "store_name": "StreamManager",
         "title": "Find Codes",
-        "meta_description": "Multilingual page to retrieve login codes for Disney+, Netflix and Prime Video with WhatsApp support.",
+        "meta_description": "Multilingual page to retrieve login codes for Disney+, Netflix, Prime Video, Mubi and other services with WhatsApp support.",
         "language_label": "Language",
         "whatsapp_icon": "WhatsApp",
         "service_label": "Select the service",
@@ -129,7 +129,7 @@ T: Dict[str, Dict[str, str]] = {
     "pt": {
         "store_name": "StreamManager",
         "title": "Buscar Códigos",
-        "meta_description": "Página multilíngue para buscar códigos de login da Disney+, Netflix e Prime Video com suporte por WhatsApp.",
+        "meta_description": "Página multilíngue para buscar códigos de login da Disney+, Netflix, Prime Video, Mubi e outros serviços com suporte por WhatsApp.",
         "language_label": "Idioma",
         "whatsapp_icon": "WhatsApp",
         "service_label": "Selecione o serviço",
@@ -251,6 +251,10 @@ def index_post():
         "max",
         "hbomax",
         "hbo max",
+        "mubi",
+        "universal+",
+        "universalplus",
+        "universal plus",
     }
     if service not in allowed_services:
         return render_template(
@@ -269,6 +273,10 @@ def index_post():
         platform_candidates = ["prime", "amazon"]
     elif service in {"max", "hbomax", "hbo max"}:
         platform_candidates = ["max", "hbomax", "hbo max"]
+    elif service == "mubi":
+        platform_candidates = ["mubi"]
+    elif service in {"universal+", "universalplus", "universal plus"}:
+        platform_candidates = ["universal+", "universalplus", "universal plus"]
 
     where_platform = " OR ".join([f"platform = :p{i}" for i in range(len(platform_candidates))])
     params = {"e": email}
@@ -311,6 +319,12 @@ def index_post():
 
     elif service in {"max", "hbomax", "hbo max"}:
         subject_keywords = ["Urgente: Tu código de un solo uso"]
+
+    elif service == "mubi":
+        subject_filter = "Your MUBI one-time password"
+
+    elif service in {"universal+", "universalplus", "universal plus"}:
+        subject_filter = "Universal+ código de activación"
 
     # Busca o e-mail com tratamento de erro para evitar 500
     try:
@@ -424,7 +438,10 @@ def accounts_create():
     if platform == "amazon prime":
         platform = "prime"
 
-    if platform not in {"disney", "netflix", "prime", "amazon", "crunchyroll", "max"} or not email or not password:
+    if platform in {"universalplus", "universal plus"}:
+        platform = "universal+"
+
+    if platform not in {"disney", "netflix", "prime", "amazon", "crunchyroll", "max", "mubi", "universal+"} or not email or not password:
         flash("Preencha corretamente plataforma, e-mail e senha.", "error")
         return redirect(url_for("accounts_page"))
 
